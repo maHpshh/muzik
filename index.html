@@ -83,15 +83,8 @@ button:disabled{
     margin-top:4px;
 }
 
-.loading{
-    font-size:12px;
-    color:#888;
-}
-
-.error{
-    color:red;
-    font-size:12px;
-}
+.loading{font-size:12px;color:#888;}
+.error{color:red;font-size:12px;}
 </style>
 </head>
 
@@ -101,7 +94,6 @@ button:disabled{
 
 <h2>🎧 Music Diary PRO</h2>
 
-<!-- SEARCH -->
 <div class="card">
     <h3>🔍 통합 검색</h3>
     <input id="q" placeholder="Spotify / Apple / iTunes">
@@ -110,39 +102,29 @@ button:disabled{
     <div id="result"></div>
 </div>
 
-<!-- ALBUMS -->
 <div id="albums"></div>
 
 </div>
 
 <script>
 
-const API = "https://muzik-lime.vercel.app/";
+const API = "https://muzik-lime.vercel.app/api";
 
 let albums = JSON.parse(localStorage.getItem("albums")) || [];
 
-/* =========================
-   SAVE
-========================= */
 function save(){
     localStorage.setItem("albums",JSON.stringify(albums));
 }
 
-/* =========================
-   UI STATUS
-========================= */
 function setStatus(msg,type="loading"){
-    document.getElementById("status").innerHTML=
+    document.getElementById("status").innerHTML =
     `<div class="${type}">${msg}</div>`;
 }
 
-/* =========================
-   API SAFE CALL
-========================= */
 async function api(path,body){
 
     try{
-        const res = await fetch(API+path,{
+        const res = await fetch(`${API}${path}`,{
             method:"POST",
             headers:{ "Content-Type":"application/json" },
             body:JSON.stringify(body)
@@ -163,7 +145,7 @@ async function api(path,body){
 ========================= */
 async function search(){
 
-    const q=document.getElementById("q").value;
+    const q = document.getElementById("q").value;
 
     if(!q){
         setStatus("검색어 입력 필요","error");
@@ -172,12 +154,12 @@ async function search(){
 
     setStatus("🔄 검색 중...");
 
-    const btn=document.getElementById("searchBtn");
-    btn.disabled=true;
+    const btn = document.getElementById("searchBtn");
+    btn.disabled = true;
 
-    const res=await api("/search-all",{q});
+    const res = await api("/search-all",{q});
 
-    btn.disabled=false;
+    btn.disabled = false;
 
     if(!res.length){
         setStatus("결과 없음","error");
@@ -186,15 +168,14 @@ async function search(){
 
     setStatus("✅ 완료");
 
-    document.getElementById("result").innerHTML=
+    document.getElementById("result").innerHTML =
     res.map(s=>`
         <div class="card">
             🎵 <b>${s.title}</b><br>
             👤 ${s.artist}<br>
+            <span class="tag">${s.source || "itunes"}</span>
 
-            <span class="tag">${s.source}</span>
-
-            <button onclick="add('${escape(s.title)}','${escape(s.artist)}','${s.albumId}','${s.source}')">
+            <button onclick="addSong('${encodeURIComponent(s.title)}','${encodeURIComponent(s.artist)}','${s.albumId}','${s.source}')">
                 추가
             </button>
         </div>
@@ -202,9 +183,9 @@ async function search(){
 }
 
 /* =========================
-   ADD SONG → ALBUM
+   ADD SONG
 ========================= */
-async function add(title,artist,albumId,source){
+async function addSong(title,artist,albumId,source){
 
     setStatus("📀 앨범 로딩...");
 
@@ -212,15 +193,15 @@ async function add(title,artist,albumId,source){
 
     const data = {
         id:Date.now(),
-        title:unescape(title),
-        artist:unescape(artist),
-        cover:album.cover,
+        title:decodeURIComponent(title),
+        artist:decodeURIComponent(artist),
+        cover:album.cover || "",
         source,
-        songs:album.songs
+        songs:album.songs || []
     };
 
     data.songs.push({
-        title:unescape(title),
+        title:decodeURIComponent(title),
         rating:5,
         ai:album.aiReview || ""
     });
@@ -237,20 +218,20 @@ async function add(title,artist,albumId,source){
 ========================= */
 function render(){
 
-    const el=document.getElementById("albums");
-    el.innerHTML="";
+    const el = document.getElementById("albums");
+    el.innerHTML = "";
 
     if(!albums.length){
-        el.innerHTML="<div class='card'>아직 앨범 없음</div>";
+        el.innerHTML = "<div class='card'>아직 앨범 없음</div>";
         return;
     }
 
     albums.forEach(a=>{
 
-        el.innerHTML+=`
+        el.innerHTML += `
         <div class="album">
 
-            ${a.cover?`<img class="cover" src="${a.cover}">`:''}
+            ${a.cover ? `<img class="cover" src="${a.cover}">` : ''}
 
             <h3>${a.title}</h3>
             <div class="small">${a.artist}</div>
@@ -258,8 +239,8 @@ function render(){
 
             ${a.songs.map(s=>`
                 <div class="song">
-                    🎵 ${s.title} ⭐ ${s.rating||5}
-                    <div class="small">${s.ai||""}</div>
+                    🎵 ${s.title} ⭐ ${s.rating || 5}
+                    <div class="small">${s.ai || ""}</div>
                 </div>
             `).join("")}
 
