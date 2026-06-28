@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Music Diary PRO</title>
+<title>Music Diary PRO+</title>
 
 <style>
 body{
@@ -15,11 +15,9 @@ body{
 
 .container{
     max-width:540px;
-    margin:0 auto;
+    margin:auto;
     padding:20px;
 }
-
-h2{font-size:20px;}
 
 .card{
     background:#fff;
@@ -29,34 +27,18 @@ h2{font-size:20px;}
     box-shadow:0 2px 10px rgba(0,0,0,0.06);
 }
 
-input{
+input,button{
     width:100%;
     padding:10px;
-    border-radius:10px;
-    border:1px solid #ddd;
     margin-top:8px;
+    border-radius:10px;
 }
 
 button{
-    width:100%;
-    padding:10px;
-    margin-top:8px;
     border:none;
-    border-radius:10px;
-    background:#0a84ff;
-    color:#fff;
+    background:#007aff;
+    color:white;
     font-weight:600;
-}
-
-button:disabled{
-    background:#ccc;
-}
-
-.album{
-    background:#fff;
-    padding:12px;
-    border-radius:16px;
-    margin-top:10px;
 }
 
 .cover{
@@ -67,24 +49,19 @@ button:disabled{
 .song{
     font-size:13px;
     margin-top:6px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
-.small{
-    font-size:12px;
-    color:#666;
+.star{
+    cursor:pointer;
+    color:#ccc;
 }
 
-.tag{
-    font-size:11px;
-    padding:2px 6px;
-    border-radius:6px;
-    background:#eee;
-    display:inline-block;
-    margin-top:4px;
+.star.active{
+    color:#ffb400;
 }
-
-.loading{font-size:12px;color:#888;}
-.error{color:red;font-size:12px;}
 </style>
 </head>
 
@@ -92,16 +69,14 @@ button:disabled{
 
 <div class="container">
 
-<h2>🎧 Music Diary PRO</h2>
+<h2>🎧 Music Diary PRO+</h2>
 
 <div class="card">
-    <h3>🔍 통합 검색</h3>
-    <input id="q" placeholder="Spotify / Apple / iTunes">
-    <button id="searchBtn" onclick="search()">검색</button>
-    <div id="status"></div>
-    <div id="result"></div>
+    <input id="q" placeholder="곡 / 아티스트 검색">
+    <button onclick="search()">검색</button>
 </div>
 
+<div id="result"></div>
 <div id="albums"></div>
 
 </div>
@@ -116,141 +91,112 @@ function save(){
     localStorage.setItem("albums",JSON.stringify(albums));
 }
 
-function setStatus(msg,type="loading"){
-    document.getElementById("status").innerHTML =
-    `<div class="${type}">${msg}</div>`;
-}
-
-async function api(path,body){
-
-    try{
-        const res = await fetch(`${API}${path}`,{
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body:JSON.stringify(body)
-        });
-
-        if(!res.ok) throw new Error("API ERROR");
-
-        return await res.json();
-
-    }catch(e){
-        setStatus("❌ 서버 연결 실패","error");
-        return [];
-    }
-}
-
-/* =========================
-   SEARCH
-========================= */
+/* ---------------- SEARCH ---------------- */
 async function search(){
 
     const q = document.getElementById("q").value;
 
-    if(!q){
-        setStatus("검색어 입력 필요","error");
-        return;
-    }
+    const res = await fetch(`${API}/search-all`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({q})
+    });
 
-    setStatus("🔄 검색 중...");
-
-    const btn = document.getElementById("searchBtn");
-    btn.disabled = true;
-
-    const res = await api("/search-all",{q});
-
-    btn.disabled = false;
-
-    if(!res.length){
-        setStatus("결과 없음","error");
-        return;
-    }
-
-    setStatus("✅ 완료");
+    const data = await res.json();
 
     document.getElementById("result").innerHTML =
-    res.map(s=>`
+    data.map(s=>`
         <div class="card">
-            🎵 <b>${s.title}</b><br>
-            👤 ${s.artist}<br>
-            <span class="tag">${s.source || "itunes"}</span>
-
-            <button onclick="addSong('${encodeURIComponent(s.title)}','${encodeURIComponent(s.artist)}','${s.albumId}','${s.source}')">
-                추가
+            🎵 ${s.title}<br>
+            👤 ${s.artist}
+            <button onclick="openAlbum('${s.albumId}','${s.title}','${s.artist}')">
+                앨범 추가
             </button>
         </div>
     `).join("");
 }
 
-/* =========================
-   ADD SONG
-========================= */
-async function addSong(title,artist,albumId,source){
+/* ---------------- ALBUM ---------------- */
+async function openAlbum(id,title,artist){
 
-    setStatus("📀 앨범 로딩...");
-
-    const album = await api("/get-album",{albumId,source});
-
-    const data = {
-        id:Date.now(),
-        title:decodeURIComponent(title),
-        artist:decodeURIComponent(artist),
-        cover:album.cover || "",
-        source,
-        songs:album.songs || []
-    };
-
-    data.songs.push({
-        title:decodeURIComponent(title),
-        rating:5,
-        ai:album.aiReview || ""
+    const res = await fetch(`${API}/get-album`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({albumId:id})
     });
 
-    albums.unshift(data);
+    const album = await res.json();
+
+    const obj = {
+        id:Date.now(),
+        title,
+        artist,
+        cover:album.cover,
+        songs:album.songs.map(s=>({
+            title:s.title,
+            rating:0
+        })),
+        review:""
+    };
+
+    albums.unshift(obj);
     save();
     render();
-
-    setStatus("✅ 추가 완료");
 }
 
-/* =========================
-   RENDER
-========================= */
+/* ---------------- RENDER ---------------- */
 function render(){
 
     const el = document.getElementById("albums");
-    el.innerHTML = "";
+    el.innerHTML="";
 
-    if(!albums.length){
-        el.innerHTML = "<div class='card'>아직 앨범 없음</div>";
-        return;
-    }
+    albums.forEach((a,i)=>{
 
-    albums.forEach(a=>{
+        let avg = 0;
+        if(a.songs.length){
+            avg = a.songs.reduce((x,y)=>x+y.rating,0)/a.songs.length;
+        }
 
         el.innerHTML += `
-        <div class="album">
+        <div class="card">
 
-            ${a.cover ? `<img class="cover" src="${a.cover}">` : ''}
+            ${a.cover ? `<img class="cover" src="${a.cover}">` : ""}
 
             <h3>${a.title}</h3>
-            <div class="small">${a.artist}</div>
-            <div class="tag">${a.source}</div>
+            <div>${a.artist}</div>
 
-            ${a.songs.map(s=>`
+            <div>⭐ 평균: ${avg.toFixed(1)}</div>
+
+            ${a.songs.map((s,si)=>`
                 <div class="song">
-                    🎵 ${s.title} ⭐ ${s.rating || 5}
-                    <div class="small">${s.ai || ""}</div>
+                    ${s.title}
+
+                    <div>
+                        ${[1,2,3,4,5].map(n=>`
+                            <span class="star ${n<=s.rating?'active':''}"
+                            onclick="rate(${i},${si},${n})">★</span>
+                        `).join("")}
+                    </div>
+
                 </div>
             `).join("")}
 
         </div>
         `;
     });
+
+    save();
+}
+
+/* ---------------- RATING ---------------- */
+function rate(ai,si,val){
+    albums[ai].songs[si].rating = val;
+    render();
 }
 
 render();
 
 </script>
+
 </body>
 </html>
