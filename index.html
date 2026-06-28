@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Diary PRO</title>
+
+<style>
+body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont;
+    background:#f5f5f7;
+    color:#111;
+}
+
+.container{
+    max-width:540px;
+    margin:0 auto;
+    padding:20px;
+}
+
+h2{font-size:20px;}
+
+.card{
+    background:#fff;
+    padding:14px;
+    border-radius:16px;
+    margin-bottom:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+}
+
+input{
+    width:100%;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    margin-top:8px;
+}
+
+button{
+    width:100%;
+    padding:10px;
+    margin-top:8px;
+    border:none;
+    border-radius:10px;
+    background:#0a84ff;
+    color:#fff;
+    font-weight:600;
+}
+
+button:disabled{
+    background:#ccc;
+}
+
+.album{
+    background:#fff;
+    padding:12px;
+    border-radius:16px;
+    margin-top:10px;
+}
+
+.cover{
+    width:100%;
+    border-radius:12px;
+}
+
+.song{
+    font-size:13px;
+    margin-top:6px;
+}
+
+.small{
+    font-size:12px;
+    color:#666;
+}
+
+.tag{
+    font-size:11px;
+    padding:2px 6px;
+    border-radius:6px;
+    background:#eee;
+    display:inline-block;
+    margin-top:4px;
+}
+
+.loading{
+    font-size:12px;
+    color:#888;
+}
+
+.error{
+    color:red;
+    font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🎧 Music Diary PRO</h2>
+
+<!-- SEARCH -->
+<div class="card">
+    <h3>🔍 통합 검색</h3>
+    <input id="q" placeholder="Spotify / Apple / iTunes">
+    <button id="searchBtn" onclick="search()">검색</button>
+    <div id="status"></div>
+    <div id="result"></div>
+</div>
+
+<!-- ALBUMS -->
+<div id="albums"></div>
+
+</div>
+
+<script>
+
+const API = "https://YOUR_BACKEND_URL";
+
+let albums = JSON.parse(localStorage.getItem("albums")) || [];
+
+/* =========================
+   SAVE
+========================= */
+function save(){
+    localStorage.setItem("albums",JSON.stringify(albums));
+}
+
+/* =========================
+   UI STATUS
+========================= */
+function setStatus(msg,type="loading"){
+    document.getElementById("status").innerHTML=
+    `<div class="${type}">${msg}</div>`;
+}
+
+/* =========================
+   API SAFE CALL
+========================= */
+async function api(path,body){
+
+    try{
+        const res = await fetch(API+path,{
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify(body)
+        });
+
+        if(!res.ok) throw new Error("API ERROR");
+
+        return await res.json();
+
+    }catch(e){
+        setStatus("❌ 서버 연결 실패","error");
+        return [];
+    }
+}
+
+/* =========================
+   SEARCH
+========================= */
+async function search(){
+
+    const q=document.getElementById("q").value;
+
+    if(!q){
+        setStatus("검색어 입력 필요","error");
+        return;
+    }
+
+    setStatus("🔄 검색 중...");
+
+    const btn=document.getElementById("searchBtn");
+    btn.disabled=true;
+
+    const res=await api("/search-all",{q});
+
+    btn.disabled=false;
+
+    if(!res.length){
+        setStatus("결과 없음","error");
+        return;
+    }
+
+    setStatus("✅ 완료");
+
+    document.getElementById("result").innerHTML=
+    res.map(s=>`
+        <div class="card">
+            🎵 <b>${s.title}</b><br>
+            👤 ${s.artist}<br>
+
+            <span class="tag">${s.source}</span>
+
+            <button onclick="add('${escape(s.title)}','${escape(s.artist)}','${s.albumId}','${s.source}')">
+                추가
+            </button>
+        </div>
+    `).join("");
+}
+
+/* =========================
+   ADD SONG → ALBUM
+========================= */
+async function add(title,artist,albumId,source){
+
+    setStatus("📀 앨범 로딩...");
+
+    const album = await api("/get-album",{albumId,source});
+
+    const data = {
+        id:Date.now(),
+        title:unescape(title),
+        artist:unescape(artist),
+        cover:album.cover,
+        source,
+        songs:album.songs
+    };
+
+    data.songs.push({
+        title:unescape(title),
+        rating:5,
+        ai:album.aiReview || ""
+    });
+
+    albums.unshift(data);
+    save();
+    render();
+
+    setStatus("✅ 추가 완료");
+}
+
+/* =========================
+   RENDER
+========================= */
+function render(){
+
+    const el=document.getElementById("albums");
+    el.innerHTML="";
+
+    if(!albums.length){
+        el.innerHTML="<div class='card'>아직 앨범 없음</div>";
+        return;
+    }
+
+    albums.forEach(a=>{
+
+        el.innerHTML+=`
+        <div class="album">
+
+            ${a.cover?`<img class="cover" src="${a.cover}">`:''}
+
+            <h3>${a.title}</h3>
+            <div class="small">${a.artist}</div>
+            <div class="tag">${a.source}</div>
+
+            ${a.songs.map(s=>`
+                <div class="song">
+                    🎵 ${s.title} ⭐ ${s.rating||5}
+                    <div class="small">${s.ai||""}</div>
+                </div>
+            `).join("")}
+
+        </div>
+        `;
+    });
+}
+
+render();
+
+</script>
+</body>
+</html>
