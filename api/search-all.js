@@ -2,10 +2,13 @@ module.exports = async (req, res) => {
 
   try {
 
-    const q = req.body?.q;
+    // 🔥 GET + POST 둘 다 처리
+    const q = req.method === "POST"
+      ? req.body?.q
+      : req.query?.q;
 
     if (!q) {
-      return res.status(400).json([]);
+      return res.status(400).json({ error: "no query" });
     }
 
     const r = await fetch(
@@ -14,15 +17,9 @@ module.exports = async (req, res) => {
 
     const data = await r.json();
 
-    const result = (data.results || []).map(item => ({
-      title: item.trackName,
-      artist: item.artistName,
-      albumId: item.collectionId
-    }));
-
-    return res.status(200).json(result);
+    return res.status(200).json(data.results || []);
 
   } catch (e) {
-    return res.status(500).json([]);
+    return res.status(500).json({ error: e.message });
   }
 };
