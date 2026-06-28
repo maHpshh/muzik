@@ -1,19 +1,15 @@
 module.exports = async (req, res) => {
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "POST only" });
-  }
-
-  const { q } = req.body;
-
-  if (!q) {
-    return res.status(400).json({ error: "no query" });
-  }
-
   try {
 
+    const q = req.body?.q;
+
+    if (!q) {
+      return res.status(400).json([]);
+    }
+
     const r = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`
+      `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=10`
     );
 
     const data = await r.json();
@@ -27,6 +23,6 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
 
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json([]);
   }
 };
