@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST only" });
@@ -12,28 +12,21 @@ export default async function handler(req, res) {
 
   try {
 
-    // =====================
-    // 🍎 iTunes (fallback 100% 안정)
-    // =====================
-    const itunesRes = await fetch(
+    const r = await fetch(
       `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=5`
     );
 
-    const itunes = await itunesRes.json();
+    const data = await r.json();
 
-    const itunesData = (itunes.results || []).map(s => ({
-      title: s.trackName,
-      artist: s.artistName,
-      albumId: s.collectionId,
-      source: "itunes"
+    const result = (data.results || []).map(item => ({
+      title: item.trackName,
+      artist: item.artistName,
+      albumId: item.collectionId
     }));
 
-    return res.status(200).json(itunesData);
+    return res.status(200).json(result);
 
   } catch (e) {
-    return res.status(500).json({
-      error: "search failed",
-      detail: e.message
-    });
+    return res.status(500).json({ error: e.message });
   }
-}
+};
