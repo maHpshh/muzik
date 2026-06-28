@@ -1,14 +1,10 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST only" });
   }
 
   const { text } = req.body;
-
-  if (!text) {
-    return res.status(400).json({ error: "no text" });
-  }
 
   try {
 
@@ -21,14 +17,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          {
-            role: "system",
-            content: "너는 음악 리뷰어다. 짧고 감성적으로 써라"
-          },
-          {
-            role: "user",
-            content: text
-          }
+          { role: "user", content: text }
         ]
       })
     });
@@ -40,9 +29,6 @@ export default async function handler(req, res) {
     });
 
   } catch (e) {
-    return res.status(500).json({
-      error: "ai failed",
-      detail: e.message
-    });
+    return res.status(500).json({ error: e.message });
   }
-}
+};
